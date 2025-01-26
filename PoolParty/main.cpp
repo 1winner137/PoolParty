@@ -5,7 +5,8 @@
 #include <boost/log/trivial.hpp>
 
 
-//This is set to release not debbugging
+//This is set to release not debbugging,
+//compiling as x86 has got an error in PoolParty.cpp
 #ifdef _WIN64
     #pragma comment(lib, "libboost_log-vc143-mt-gd-x64-1_87.lib")
 #elif defined(_WIN32)
