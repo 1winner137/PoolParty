@@ -1,4 +1,37 @@
+# PoolParty Fork
 
+This repository is a fork of the original [PoolParty project by SafeBreach-Labs](https://github.com/SafeBreach-Labs/PoolParty).
+
+## About
+
+PoolParty is a Windows tool designed to demonstrate process hollowing techniques. This fork includes minor updates to enhance functionality and usability.
+
+## Updates in This Fork
+
+- **Added Support for Custom Path Input:**  
+  Updated the executable to accept a new argument:
+  ```
+  PoolParty.exe -V 8 -P 1234 -path C:\Users\User\Download\program.exe
+  ```
+  The `-path` argument allows specifying the full path to the program you wish to execute.
+
+## Usage
+
+```
+PoolParty.exe -V <version> -P <process_id> -path <program_path>
+```
+
+### Arguments
+- `-V`: Version parameter (integer, e.g., `8`).
+- `-P`: Process ID (integer, e.g., `1234`).
+- `-path`: Full path to the executable file (e.g., `C:\Users\User\Download\program.exe`).
+
+## Original Repository
+
+The original PoolParty repository by SafeBreach-Labs can be found [here](https://github.com/SafeBreach-Labs/PoolParty).
+
+---
+This are retained from original project
 # PoolParty
 A collection of fully-undetectable process injection techniques abusing Windows Thread Pools. Presented at Black Hat EU 2023 Briefings under the title - [**The Pool Party You Will Never Forget: New Process Injection Techniques Using Windows Thread Pools**](https://www.blackhat.com/eu-23/briefings/schedule/#the-pool-party-you-will-never-forget-new-process-injection-techniques-using-windows-thread-pools-35446)
 
